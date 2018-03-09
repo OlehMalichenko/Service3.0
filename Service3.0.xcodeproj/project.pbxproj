@@ -13,6 +13,12 @@
 		76CB897E20503E46005B76A9 /* Service3_0.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 76CB897C20503E46005B76A9 /* Service3_0.xcdatamodeld */; };
 		76CB898020503E46005B76A9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 76CB897F20503E46005B76A9 /* Assets.xcassets */; };
 		76CB898320503E46005B76A9 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 76CB898120503E46005B76A9 /* LaunchScreen.storyboard */; };
+		76CB898B205049FF005B76A9 /* CoreDataHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CB898A205049FF005B76A9 /* CoreDataHandler.swift */; };
+		76CB898D20504AA0005B76A9 /* EnumsHalper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CB898C20504AA0005B76A9 /* EnumsHalper.swift */; };
+		76CB898F205138D3005B76A9 /* Extentions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CB898E205138D3005B76A9 /* Extentions.swift */; };
+		76CB899120514A42005B76A9 /* BlockHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CB899020514A42005B76A9 /* BlockHandler.swift */; };
+		76CB899320514A62005B76A9 /* TariffHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CB899220514A62005B76A9 /* TariffHandler.swift */; };
+		76CB899520514A7C005B76A9 /* ServiceHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CB899420514A7C005B76A9 /* ServiceHandler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +30,12 @@
 		76CB897F20503E46005B76A9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		76CB898220503E46005B76A9 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		76CB898420503E46005B76A9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		76CB898A205049FF005B76A9 /* CoreDataHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataHandler.swift; sourceTree = "<group>"; };
+		76CB898C20504AA0005B76A9 /* EnumsHalper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnumsHalper.swift; sourceTree = "<group>"; };
+		76CB898E205138D3005B76A9 /* Extentions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extentions.swift; sourceTree = "<group>"; };
+		76CB899020514A42005B76A9 /* BlockHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockHandler.swift; sourceTree = "<group>"; };
+		76CB899220514A62005B76A9 /* TariffHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TariffHandler.swift; sourceTree = "<group>"; };
+		76CB899420514A7C005B76A9 /* ServiceHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceHandler.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,6 +75,12 @@
 				76CB898120503E46005B76A9 /* LaunchScreen.storyboard */,
 				76CB898420503E46005B76A9 /* Info.plist */,
 				76CB897C20503E46005B76A9 /* Service3_0.xcdatamodeld */,
+				76CB898A205049FF005B76A9 /* CoreDataHandler.swift */,
+				76CB899020514A42005B76A9 /* BlockHandler.swift */,
+				76CB899220514A62005B76A9 /* TariffHandler.swift */,
+				76CB899420514A7C005B76A9 /* ServiceHandler.swift */,
+				76CB898E205138D3005B76A9 /* Extentions.swift */,
+				76CB898C20504AA0005B76A9 /* EnumsHalper.swift */,
 			);
 			path = Service3.0;
 			sourceTree = "<group>";
@@ -139,7 +157,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				76CB899320514A62005B76A9 /* TariffHandler.swift in Sources */,
 				76CB897820503E46005B76A9 /* ViewController.swift in Sources */,
+				76CB898D20504AA0005B76A9 /* EnumsHalper.swift in Sources */,
+				76CB898F205138D3005B76A9 /* Extentions.swift in Sources */,
+				76CB899520514A7C005B76A9 /* ServiceHandler.swift in Sources */,
+				76CB899120514A42005B76A9 /* BlockHandler.swift in Sources */,
+				76CB898B205049FF005B76A9 /* CoreDataHandler.swift in Sources */,
 				76CB897620503E46005B76A9 /* AppDelegate.swift in Sources */,
 				76CB897E20503E46005B76A9 /* Service3_0.xcdatamodeld in Sources */,
 			);
