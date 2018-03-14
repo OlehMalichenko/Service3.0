@@ -12,7 +12,9 @@ class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        //BlockHandler.reservationBlock(inService: "Вода")
+        
+        
     }
     
 }

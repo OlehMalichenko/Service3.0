@@ -18,10 +18,7 @@ extension String {
     
     func getDate() -> Date? {
         let formater = DateFormatter()
-        formater.monthSymbols = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
-        formater.dateFormat = "MMMM dd, yy"
-        formater.dateStyle = .long
-        formater.timeStyle = .none
+        formater.dateFormat = "MMMM, yy"
         guard let date = formater.date(from: self) else {
             return nil
         }
@@ -33,11 +30,20 @@ extension String {
 extension Date {
     func dateToString() -> String {
         let formater = DateFormatter()
-        formater.monthSymbols = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
-        formater.dateFormat = "MMMM dd, yy"
-        formater.dateStyle = .long
-        formater.timeStyle = .none
+        formater.dateFormat = "MMMM, yy"
         return formater.string(from: self)
+    }
+}
+
+
+extension Date {
+    static func makePreviousPeriod() -> String {
+        let calendar = Calendar.current
+        let formater = DateFormatter()
+        formater.dateFormat = "MMMM, yy"
+        let datePeriod = calendar.date(byAdding: .month, value: -1, to: Date())
+        let result = formater.string(from: datePeriod!)
+        return result
     }
 }
 

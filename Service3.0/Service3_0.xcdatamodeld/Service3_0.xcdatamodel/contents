@@ -4,28 +4,29 @@
         <attribute name="amount" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="date" attributeType="String" syncable="YES"/>
         <attribute name="isPay" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="mark" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="mark" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="nameService" attributeType="String" syncable="YES"/>
-        <attribute name="tariff" optional="YES" attributeType="Transformable" syncable="YES"/>
+        <attribute name="oneTariff" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="tariffAmountVal" optional="YES" attributeType="Transformable" syncable="YES"/>
         <attribute name="val" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
-        <attribute name="valAllotment" optional="YES" attributeType="Transformable" syncable="YES"/>
         <attribute name="valDifference" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <relationship name="tariffInBlock" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Tariffs" inverseName="blockInTariff" inverseEntity="Tariffs" syncable="YES"/>
     </entity>
     <entity name="Services" representedClassName="Services" syncable="YES" codeGenerationType="class">
         <attribute name="nameService" attributeType="String" syncable="YES"/>
         <attribute name="sumVal" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
     </entity>
     <entity name="Tariffs" representedClassName="Tariffs" syncable="YES" codeGenerationType="class">
-        <attribute name="allotmentParameter" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="dateTariff" attributeType="String" syncable="YES"/>
-        <attribute name="isAllotment" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="isAllotment" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="nameService" attributeType="String" syncable="YES"/>
-        <attribute name="tariffAfter" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="parameterToTariff" optional="YES" attributeType="Transformable" syncable="YES"/>
         <attribute name="tariffService" attributeType="Double" defaultValueString="0" usesScalarValueType="YES" syncable="YES"/>
+        <relationship name="blockInTariff" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Block" inverseName="tariffInBlock" inverseEntity="Block" syncable="YES"/>
     </entity>
     <elements>
-        <element name="Block" positionX="-414" positionY="-135" width="128" height="178"/>
-        <element name="Tariffs" positionX="-279" positionY="-135" width="128" height="133"/>
+        <element name="Block" positionX="-414" positionY="-135" width="128" height="193"/>
         <element name="Services" positionX="-567" positionY="-135" width="128" height="73"/>
+        <element name="Tariffs" positionX="-236" positionY="-135" width="128" height="135"/>
     </elements>
 </model>

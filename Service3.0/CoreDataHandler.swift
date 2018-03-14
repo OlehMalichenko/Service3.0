@@ -36,23 +36,24 @@ class CoreDataHandler: NSObject {
     }
     
     // сохранение Block
-    class func saveBlock(nameService: String,
-                         date: String,
-                         mark: Double,
-                         amount: Double?,
-                         val: Double?,
-                         tariffs: [Double]?,
-                         valAllotment: [Double : Double]?) -> Bool
-    {
+    class func saveBlock(nameService: String, dateString: String) -> Bool {
+        guard let date = dateString.getDate() else { return false }
+        
         let context = getContext()
         let block = Block(context: context)
         block.nameService = nameService
-        block.date = date
-        block.mark = mark
-        block.amount = amount ?? block.amount
-        block.val = val ?? block.val
-        block.tariff = tariffs as NSObject?
-        block.valAllotment = valAllotment as NSObject?
+        block.date = dateString
+        
+        guard let fetchLastTariff = fetchLastTariff(inService: nameService) else {return false}
+
+        if !fetchLastTariff.isEmpty {
+            if let dateLastTariff = fetchLastTariff.first?.dateTariff?.getDate() {
+                if date >= dateLastTariff {
+                    let tariff = fetchLastTariff.first
+                    tariff?.addToBlockInTariff(block)
+                }
+            }
+        }
         do {
             try context.save()
             print("сохранение удалось")
@@ -68,8 +69,7 @@ class CoreDataHandler: NSObject {
                           date: String,
                           tariffService: Double,
                           isAllotment: Bool?,
-                          allotmentParameter: Double?,
-                          tariffAfter: Double?) -> Bool
+                          parameterToTariff: [Double : Double]?) -> Bool
     {
         let context = getContext()
         let tariffObject = Tariffs(context: context)
@@ -77,8 +77,7 @@ class CoreDataHandler: NSObject {
         tariffObject.dateTariff = date
         tariffObject.tariffService = tariffService
         tariffObject.isAllotment = isAllotment ?? tariffObject.isAllotment
-        tariffObject.allotmentParameter = allotmentParameter ?? tariffObject.allotmentParameter
-        tariffObject.tariffAfter = tariffAfter ?? tariffObject.tariffAfter
+        tariffObject.parameterToTariff = parameterToTariff as NSObject? ?? tariffObject.parameterToTariff
         do {
             try context.save()
             print("сохранение удалось")
@@ -190,24 +189,45 @@ class CoreDataHandler: NSObject {
         }
     }
     
+    class func fetchLastTariff(inService name: String) -> [Tariffs]? {
+        let context = getContext()
+        let request: NSFetchRequest<Tariffs> = Tariffs.fetchRequest()
+        let predicate = NSPredicate(format: "nameService == %@", name)
+        request.predicate = predicate
+        let arrayTariffs: [Tariffs]
+        do {
+            arrayTariffs = try context.fetch(request)
+        } catch {
+            return nil
+        }
+        guard arrayTariffs.count > 1 else { return arrayTariffs }
+        var dictTariff = [Date : Tariffs]()
+        for i in arrayTariffs {
+            guard let date = i.dateTariff?.getDate() else { return nil }
+            dictTariff[date] = i
+        }
+        let maxDate = dictTariff.keys.max()!
+        return [dictTariff[maxDate]!]
+    }
+    
     
     // MARK: - Update
     class func updateBlock(_ block: Block,
                            newMark: Double?,
                            newAmount: Double?,
-                           newTariff: [Double]?,
+                           newOneTariff: Double?,
                            newVal: Double?,
                            isPay: Bool?,
-                           newValAllotment: [Double:Double]?,
+                           newTariffAmountVal: [Double : [Double]]?,
                            newValDifference: Double?) -> Bool
     {
         let context = block.managedObjectContext!
         block.mark = newMark ?? block.mark
         block.amount = newAmount ?? block.amount
-        block.tariff = newTariff as NSObject? ?? block.tariff
+        block.oneTariff = newOneTariff ?? block.oneTariff
         block.val = newVal ?? block.val
         block.isPay = isPay ?? block.isPay
-        block.valAllotment = newValAllotment as NSObject? ?? block.valAllotment
+        block.tariffAmountVal = newTariffAmountVal as NSObject? ?? block.tariffAmountVal
         block.valDifference = newValDifference ?? block.valDifference
         do {
             try context.save()
@@ -222,14 +242,12 @@ class CoreDataHandler: NSObject {
     class func updateTariff(_ tariffObject: Tariffs,
                             tariff: Double?,
                             isAllotment: Bool?,
-                            allotmentParameter: Double?,
-                            tariffAfter: Double?) -> Bool
+                            parameterToTariff: [Double : Double]?) -> Bool
     {
         let context = tariffObject.managedObjectContext!
         tariffObject.tariffService = tariff ?? tariffObject.tariffService
         tariffObject.isAllotment = isAllotment ?? tariffObject.isAllotment
-        tariffObject.allotmentParameter = allotmentParameter ?? tariffObject.allotmentParameter
-        tariffObject.tariffAfter = tariffAfter ?? tariffObject.tariffAfter
+        tariffObject.parameterToTariff = parameterToTariff as NSObject? ?? tariffObject.parameterToTariff
         do {
             try context.save()
             print("Обновление удалось")

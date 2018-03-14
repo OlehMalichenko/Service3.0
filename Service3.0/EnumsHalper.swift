@@ -27,46 +27,22 @@ enum Properties
 // уведомления для возвращаемых значений
 enum Notices: String
 {
-    case tariffIsEmpty =
-    "Тариф не установлен"
-    case noTariffForThisDate =
-    "Тарифа на указанную дату не существует"
-    case firstMark =
-    "Это первый показатель, поэтому со стоимостью надо подождать"
-    case canNotDetermineStringToDouble =
-    "Невозможно определить значение введенных данных"
+    case errorCoreData =
+    "Ошибка базы данных"
+    case blockAlreadyExist =
+    "Блок уже существует"
+    case impossiblyStringToDouble =
+    "Невозможно определить значение параметра"
+    case thisFirstMark =
+    "Это первый показатель, поэтому определить стоимость услуг невозможно"
+    case impossiblyReadDateFromCD =
+    "Невозможно прочитать дату из базы данных"
+    case inputMarkPreviousPeriod =
+    "Введите показания предыдущих периодов"
     case incorrectMark =
-    "Введенный показатель меньше предыдущего"
-    case marksIsEmpty =
-    "Нет никаких показателей"
-    case blocksIsEmpty =
-    "Никаких записей ещё нет"
-    case noMarksForThisDate =
-    "Показатель на указанную дату не фиксировался"
-    case propertiesIsEmpty =
-    "Нет кикаких данных"
-    case notPropertiesForThisInterval =
-    "За указанный период данных не зафиксировано"
-    case impossibleDate =
-    "Невозможно определить дату"
-    case errorInCoreData =
-    "Ошибка базы данных при сохранении"
-    case errorCDWherefetchInService =
-    "Ошибка базы данных при поиске списка сервисов"
-    case noThisService =
-    "Тариф устанавливается в сервис которого нет"
-    case thisServiceExist =
-    "Такой сервис уже существует"
-    case tariffDoesNotCover =
-    "Тариф не охватывает: "
-    case funcWorkedButNotChanges =
-    "Всё в норме, но изменений не произошло"
-    case updateExistingTariff =
-    "Обновлён существующий тариф"
-    case errorUpdetesBlocks =
-    "Сбой обновления показателей"
-    case blocksIsUpdates =
-    "Все показатели касающиеся новых тарифов обновлены"
-    case canNotGetDateFromString =
-    " Невозможно определить дату"
+    "Введен некорректный показатель"
+    case noTariffs =
+    "На указанную дату тариф не установлены"
+    case needParametersForTariff =
+    "Установите параметры для диференциального тарифа"
 }
