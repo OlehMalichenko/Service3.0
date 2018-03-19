@@ -177,7 +177,7 @@ class CoreDataHandler: NSObject {
         let context = getContext()
         var result: [Tariffs]
         let request: NSFetchRequest<Tariffs> = Tariffs.fetchRequest()
-        let predicate = NSPredicate(format: "nameService == %@ && dateTariff == %@", [name, date])
+        let predicate = NSPredicate(format: "nameService == %@ && dateTariff == %@", argumentArray:[name, date])
         request.predicate = predicate
         do {
             result = try context.fetch(request)
@@ -219,7 +219,8 @@ class CoreDataHandler: NSObject {
                            newVal: Double?,
                            isPay: Bool?,
                            newTariffAmountVal: [Double : [Double]]?,
-                           newValDifference: Double?) -> Bool
+                           newValDifference: Double?,
+                           newTariffInBlock: Tariffs?) -> Bool
     {
         let context = block.managedObjectContext!
         block.mark = newMark ?? block.mark
@@ -227,8 +228,9 @@ class CoreDataHandler: NSObject {
         block.oneTariff = newOneTariff ?? block.oneTariff
         block.val = newVal ?? block.val
         block.isPay = isPay ?? block.isPay
-        block.tariffAmountVal = newTariffAmountVal as NSObject? ?? block.tariffAmountVal
         block.valDifference = newValDifference ?? block.valDifference
+        block.tariffAmountVal = newTariffAmountVal as NSObject? ?? block.tariffAmountVal
+        block.tariffInBlock = newTariffInBlock ?? block.tariffInBlock
         do {
             try context.save()
             print("Обновление удалось")
@@ -242,12 +244,14 @@ class CoreDataHandler: NSObject {
     class func updateTariff(_ tariffObject: Tariffs,
                             tariff: Double?,
                             isAllotment: Bool?,
-                            parameterToTariff: [Double : Double]?) -> Bool
+                            parameterToTariff: [Double : Double]?,
+                            newBlockInTariff: Block?) -> Bool
     {
         let context = tariffObject.managedObjectContext!
         tariffObject.tariffService = tariff ?? tariffObject.tariffService
         tariffObject.isAllotment = isAllotment ?? tariffObject.isAllotment
         tariffObject.parameterToTariff = parameterToTariff as NSObject? ?? tariffObject.parameterToTariff
+        if newBlockInTariff != nil {tariffObject.addToBlockInTariff(newBlockInTariff!)}
         do {
             try context.save()
             print("Обновление удалось")

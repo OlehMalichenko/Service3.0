@@ -16,12 +16,14 @@ enum Properties
     case date
     case amount
     case val
-    case valAllotment
-    case tariff
-    case incomplete
-    case noError
-    case errorUpdetesBlocks
-    case blocksIsUpdates
+    case oneTariff
+    case tariffAmountVal
+    case isPay
+    case tariffService
+    case isAllotment
+    case parameterToTariff
+    case shortProperties
+    case errorComlete
 }
 
 // уведомления для возвращаемых значений
@@ -31,18 +33,34 @@ enum Notices: String
     "Ошибка базы данных"
     case blockAlreadyExist =
     "Блок уже существует"
-    case impossiblyStringToDouble =
-    "Невозможно определить значение параметра"
     case thisFirstMark =
     "Это первый показатель, поэтому определить стоимость услуг невозможно"
     case impossiblyReadDateFromCD =
     "Невозможно прочитать дату из базы данных"
+    case impossiblyStringToDouble =
+    "Невозможно определить значение параметра"
+    case impossiblyStringToDate =
+    "Невозможно определить значение параметра даты"
     case inputMarkPreviousPeriod =
     "Введите показания предыдущих периодов"
     case incorrectMark =
     "Введен некорректный показатель"
+    case incorrectTariff =
+    "Введен некорректный показатель тарифа"
     case noTariffs =
     "На указанную дату тариф не установлены"
+    case noBlocksInTariff =
+    "К тарифу не подкреплен ни один показатель"
+    case noUpdateBlocksWhereNewTariff =
+    "При смене тарифа данные предыдущих показателей не обновились"
     case needParametersForTariff =
     "Установите параметры для диференциального тарифа"
+    case noBlocks =
+    "Нет блоков"
+    case noBlockforThisPeriod =
+    "Нет блоков за указанный период"
+    case isPay =
+    "Оплачено"
+    case isNotPay =
+    "Не оплачено"
 }

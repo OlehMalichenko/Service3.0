@@ -25,7 +25,7 @@
         <relationship name="blockInTariff" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Block" inverseName="tariffInBlock" inverseEntity="Block" syncable="YES"/>
     </entity>
     <elements>
-        <element name="Block" positionX="-414" positionY="-135" width="128" height="193"/>
+        <element name="Block" positionX="-414" positionY="-135" width="128" height="195"/>
         <element name="Services" positionX="-567" positionY="-135" width="128" height="73"/>
         <element name="Tariffs" positionX="-236" positionY="-135" width="128" height="135"/>
     </elements>
