@@ -14,7 +14,7 @@ class BlockHandler: NSObject {
     // MARK: Public
     // резервация блока без значений. происходит первого числа каждого месяца
     class func reservationBlock(inService name: String) -> (result: Bool, notice: String?) {
-        let date = Date.makePreviousPeriod()
+        let date = Date.makePreviousPeriod() // предыдущий месяц от даты резервации
         guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(date, inService: name) else {
             return (false, Notices.errorCoreData.rawValue)
         }
@@ -29,13 +29,30 @@ class BlockHandler: NSObject {
     }
     
     
+    
+    class func newReservationBlock(inService name: String, dateString: String) -> (result: Bool, notice: String?) {
+        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
+            return (false, Notices.errorCoreData.rawValue)
+        }
+        guard fetchBlock.isEmpty else {
+            return (false, Notices.blockAlreadyExist.rawValue)
+        }
+        // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
+        guard CoreDataHandler.saveBlock(nameService: name, dateString: dateString) else {
+            return (false, Notices.errorCoreData.rawValue)
+        }
+        return (true, nil)
+    }
+    
+    
+    
     //основная функция по вводу показателя и расчета всех остальных параметров
     class func inputMark(_ markString: String, toService name: String, dateString: String) -> (result: Bool, notice: Notices?, block: Block?) {
-        // поиск нужного блока
+        // поиск нужного блока (он уже заранее зарезервирован фуекцией reservationBlock)
         guard let fetchingBlockInArray = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
             return (false, Notices.errorCoreData, nil)
         }
-        guard !fetchingBlockInArray.isEmpty else {
+        guard fetchingBlockInArray.count == 1 else {
             return (false, Notices.noBlockforThisPeriod, nil)
         }
         let block = fetchingBlockInArray.first!
@@ -44,12 +61,13 @@ class BlockHandler: NSObject {
             return (false, Notices.impossiblyStringToDouble, nil)
         }
         // получение кортежа с предпоследним блоком (если он есть?)
-        let tuplLastBlock = identifyLastButOneBlock(inService: block.nameService!)
+        // предпоследний, потому что последний уже заразервирован
+        let tuplLastBlock = identifyLastButOneBlock(inService: block.nameService!, forDate: dateString)
         guard let arrayLastBlock = tuplLastBlock.result else {
             return (false, tuplLastBlock.notice, nil)
         }
         // проверка наличия в полученом результате блока
-        // если предпоследнего нет, то выход из функции с сохранением введенного показателя
+        // если предпоследнего нет, то выход из функции с сохранением введенного показателя и сообщением о том, что это первый показатель
         guard !arrayLastBlock.isEmpty else {
             guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
                 return (false, Notices.errorCoreData, nil)
@@ -57,23 +75,29 @@ class BlockHandler: NSObject {
             return (true, Notices.thisFirstMark, block)
         }
         let lastBlock = arrayLastBlock.first! // предпоследний блок
-        // проверка на наличие показаний предыдущих периодов
+        // проверка на наличие показаний предыдущих периодов. Если нет - то сохранение не проводится
         guard lastBlock.mark != 0 else {
             return (false, Notices.inputMarkPreviousPeriod, nil)
         }
-        // вычисление объёма и проверка на его корректность
-        let amount = block.mark - lastBlock.mark
+        // вычисление объёма и проверка на его корректность (на случай, если объём отрицательный)
+        let amount = mark - lastBlock.mark
         guard amount >= 0 else {return (false, Notices.incorrectMark, nil)}
         // проверка на наличие тарифов. Если тарифов нет - выход и сохранение имеющихся данных
         guard let tariffs = block.tariffInBlock else {
+            guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
+                return (false, Notices.errorCoreData, nil)
+            }
             return (true, Notices.noTariffs, block)
         }
         // вычисление стоимости
         let val: Double
-        guard tariffs.isAllotment else {
+        guard !tariffs.isAllotment else {
             // первый вариант: если тариф диеренциальный, то задействуется функция, которая высчитывает этот тариф
             guard let tuplTariffAndVals = getAllotmentVal(amount: amount, tariff: tariffs) else {
-                return (false, Notices.needParametersForTariff, nil)
+                guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
+                    return (false, Notices.errorCoreData, nil)
+                }
+                return (false, Notices.needParametersForTariff, block) // если параметры дифТарифа не установлены - сохранение имеющихся данных
             }
             let tariffAmountVals = tuplTariffAndVals.tariffAmountVals
             val = tuplTariffAndVals.allVal
@@ -91,8 +115,10 @@ class BlockHandler: NSObject {
         return (true, nil, block)
     }
     
+    
+    
     // вывод всех параметров блока после функции inputMark, при этом учитываются разные результаты паботы функции
-    class func outputParametersFromBlock(tupl: (result: Bool, notice: Notices?, block: Block?)) -> [Properties : String] {
+    class func outputBlockAfterInput(tupl: (result: Bool, notice: Notices?, block: Block?)) -> [Properties : String] {
         var result = [Properties : String]()
         switch tupl {
         case (true, _, _) where tupl.notice == nil && tupl.block != nil:
@@ -106,6 +132,21 @@ class BlockHandler: NSObject {
         }
         return result
     }
+    
+    
+    
+    // вывод всех параметров блока при запросе их из View
+    class func outputBlock(forService name: String, andDate dateString: String) -> [Properties : String] {
+        var result = [Properties : String]()
+        guard let blockArray = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
+            return [Properties.errorComlete : Notices.errorCoreData.rawValue]
+        }
+        guard !blockArray.isEmpty else { return [Properties.errorComlete : Notices.noBlockforThisPeriod.rawValue]}
+        let block = blockArray.first!
+        result = parsedBlock(block)
+        return result
+    }
+    
     
     
     // получение словаря [Date : Block]
@@ -123,6 +164,7 @@ class BlockHandler: NSObject {
         }
         return result
     }
+    
     
     
     // MARK: - Private
@@ -156,16 +198,20 @@ class BlockHandler: NSObject {
     }
 
     
+    
     // определение предпоследнего блока, так как последний блок уже зарезервирован
-    private class func identifyLastButOneBlock(inService name: String) -> (result: [Block]?, notice: Notices?) {
+    private class func identifyLastButOneBlock(inService name: String, forDate dateString: String) -> (result: [Block]?, notice: Notices?) {
+        guard let dateExistBlock = dateString.getDate() else {return (nil, Notices.impossiblyStringToDate)}
         guard let allBlocks = CoreDataHandler.fetchAllBlocks(inService: name) else { return (nil, Notices.errorCoreData) }
         guard allBlocks.count > 1 else { return ([], nil) }
         var dateAndBlocks = [Date : Block]()
         for i in allBlocks {
             guard let date = i.date?.getDate() else {return (nil, Notices.impossiblyReadDateFromCD)}
-            dateAndBlocks[date] = i
+            if date < dateExistBlock {
+                dateAndBlocks[date] = i
+            }
         }
-        dateAndBlocks.removeValue(forKey: dateAndBlocks.keys.max()!)
+        guard dateAndBlocks.count >= 1 else {return ([], Notices.thisFirstMark)}
         let lastBlock = dateAndBlocks[dateAndBlocks.keys.max()!]!
         return ([lastBlock], nil)
     }
@@ -204,6 +250,7 @@ class BlockHandler: NSObject {
     }
     
     
+    
     // перевод массива в строку
     private class func stringFromArray(_ array: [Double]) -> String {
         var result = ""
@@ -216,8 +263,10 @@ class BlockHandler: NSObject {
         return result
     }
     
+    
+    
     // перевод словаря tariffAmountVal в строку
-    private class func stringFromDictionary(_ dictionary: [Double : [Double]]) -> String {
+    class func stringFromDictionary(_ dictionary: [Double : [Double]]) -> String {
        var result = ""
         for i in dictionary {
             let forTariff = "По тарифу: \(i.key.description)\n"

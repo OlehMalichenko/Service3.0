@@ -12,7 +12,7 @@ import CoreData
 class CoreDataHandler: NSObject {
     
     // получение контекста
-    private class func getContext() -> NSManagedObjectContext {
+    class func getContext() -> NSManagedObjectContext {
         let appdelegate = UIApplication.shared.delegate as! AppDelegate
         return appdelegate.persistentContainer.viewContext
     }
@@ -44,22 +44,22 @@ class CoreDataHandler: NSObject {
         block.nameService = nameService
         block.date = dateString
         
-        guard let fetchLastTariff = fetchLastTariff(inService: nameService) else {return false}
-
-        if !fetchLastTariff.isEmpty {
-            if let dateLastTariff = fetchLastTariff.first?.dateTariff?.getDate() {
-                if date >= dateLastTariff {
-                    let tariff = fetchLastTariff.first
-                    tariff?.addToBlockInTariff(block)
+        if let fetchLastTariff = fetchLastTariff(inService: nameService, forDateBlock: dateString) {
+            if !fetchLastTariff.isEmpty {
+                if let dateLastTariff = fetchLastTariff.first?.dateTariff?.getDate() {
+                    if date >= dateLastTariff {
+                        let tariff = fetchLastTariff.first
+                        block.tariffInBlock = tariff
+                    }
                 }
             }
         }
         do {
             try context.save()
-            print("сохранение удалось")
+            print("сохранение блока удалось")
             return true
         } catch {
-            print("сохранение НЕ удалось")
+            print("сохранение блока НЕ удалось")
             return false
         }
     }
@@ -80,10 +80,10 @@ class CoreDataHandler: NSObject {
         tariffObject.parameterToTariff = parameterToTariff as NSObject? ?? tariffObject.parameterToTariff
         do {
             try context.save()
-            print("сохранение удалось")
+            print("сохранение тарифа удалось")
             return true
         } catch {
-            print("сохранение НЕ удалось")
+            print("сохранение тарифа НЕ удалось")
             return false
         }
     }
@@ -189,7 +189,8 @@ class CoreDataHandler: NSObject {
         }
     }
     
-    class func fetchLastTariff(inService name: String) -> [Tariffs]? {
+    class func fetchLastTariff(inService name: String, forDateBlock dateBlockString: String) -> [Tariffs]? {
+        guard let dateBlock = dateBlockString.getDate() else {return nil}
         let context = getContext()
         let request: NSFetchRequest<Tariffs> = Tariffs.fetchRequest()
         let predicate = NSPredicate(format: "nameService == %@", name)
@@ -200,12 +201,15 @@ class CoreDataHandler: NSObject {
         } catch {
             return nil
         }
-        guard arrayTariffs.count > 1 else { return arrayTariffs }
+        guard !arrayTariffs.isEmpty else { return arrayTariffs }
         var dictTariff = [Date : Tariffs]()
         for i in arrayTariffs {
             guard let date = i.dateTariff?.getDate() else { return nil }
-            dictTariff[date] = i
+            if date <= dateBlock {
+                dictTariff[date] = i
+            }
         }
+        guard !dictTariff.isEmpty else { return arrayTariffs }
         let maxDate = dictTariff.keys.max()!
         return [dictTariff[maxDate]!]
     }
@@ -229,11 +233,11 @@ class CoreDataHandler: NSObject {
         block.val = newVal ?? block.val
         block.isPay = isPay ?? block.isPay
         block.valDifference = newValDifference ?? block.valDifference
-        block.tariffAmountVal = newTariffAmountVal as NSObject? ?? block.tariffAmountVal
+        block.tariffAmountVal = newTariffAmountVal as NSObject? 
         block.tariffInBlock = newTariffInBlock ?? block.tariffInBlock
         do {
             try context.save()
-            print("Обновление удалось")
+            print("Обновление блока удалось")
             return true
         } catch {
             return false
@@ -254,7 +258,7 @@ class CoreDataHandler: NSObject {
         if newBlockInTariff != nil {tariffObject.addToBlockInTariff(newBlockInTariff!)}
         do {
             try context.save()
-            print("Обновление удалось")
+            print("Обновление тарифа удалось")
             return true
         } catch {
             return false
@@ -266,7 +270,7 @@ class CoreDataHandler: NSObject {
         service.sumVal = newSum
         do {
             try context.save()
-            print("Обновление удалось")
+            print("Обновление сервиса удалось")
             return true
         } catch {
             return false

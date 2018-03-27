@@ -19,6 +19,14 @@ class TariffHandler: NSObject {
                            dateString: String,
                            isAllotment: Bool?,
                            parameterToTariffString: [String : String]?) -> (result: Bool, notice: Notices?, tariffObj: Tariffs?) {
+        // проверка на наличие установленного на эту дату тарифа (если есть - задействуется функция newParametersInExistTariff)
+        guard let checkTariff = CoreDataHandler.fetchTariffsForThisDate(dateString, inService: name) else {
+            return (false, Notices.errorCoreData, nil)
+        }
+        guard checkTariff.isEmpty else {
+            let tuplResult = newParametersInExistTariff(inService: name, date: dateString, tariffString: tariffString, parToTariffSrting: parameterToTariffString)
+            return tuplResult
+        }
         // извлечение тарифа из String в Double
         guard let tariffService = tariffString.transferToDouble() else {
             return (false, Notices.impossiblyStringToDouble, nil)
@@ -44,9 +52,16 @@ class TariffHandler: NSObject {
         guard !fetchTariffForThisDate.isEmpty else {
             return (true, Notices.noTariffs, nil) // тут извлечение удалось, но по каким-либо причинам возврат был пустой
         }
-        // использование функции для поиска блоков подпадающих под тариф и их (блоков) обновление
-        // если обновление произошло эта функция возвращает nil если нет то Notice
-        guard whereNewTariff(fetchTariffForThisDate.first!) == nil else {
+        // использование функции для поиска блоков подпадающих под тариф и их (блоков) добавление в тариф
+        // если добавление произошло эта функция возвращает nil если нет то Notice
+        guard let tariffObject = addingBlocksInNewTariff(fetchTariffForThisDate.first!).0 else {
+            return (true, Notices.noUpdateBlocksWhereNewTariff, fetchTariffForThisDate.first!)
+        }
+        // обновление данных в прикрепленных блоках
+        guard let blocksInTariff = tariffObject.blockInTariff as? Set<Block> else {
+            return (true, Notices.noBlocksInTariff, fetchTariffForThisDate.first!)
+        }
+        guard updateValsWhereNewTariff(inBlock: blocksInTariff) else {
             return (true, Notices.noUpdateBlocksWhereNewTariff, fetchTariffForThisDate.first!)
         }
         return (true, nil, fetchTariffForThisDate.first!)
@@ -54,8 +69,8 @@ class TariffHandler: NSObject {
     
     
     
-    // MARK: - вывод всей информации содержащийся в тарифе
-    class func outputParametersFromTariff(tupl: (result: Bool, notice: Notices?, tariffObj: Tariffs?)) -> [Properties : String] {
+    // MARK: - вывод всей информации содержащийся в тарифе после функции inputTariff (входящий папаметр - кортеж после inputTariff)
+    class func outputTariffAfterInput(tupl: (result: Bool, notice: Notices?, tariffObj: Tariffs?)) -> [Properties : String] {
         var result = [Properties : String]()
         switch tupl {
         case (true, nil, _) where tupl.tariffObj != nil:
@@ -64,6 +79,20 @@ class TariffHandler: NSObject {
             result[.errorComlete] = tupl.notice!.rawValue
         default: break
         }
+        return result
+    }
+    
+    
+    
+    // MARK: - вывод всей информации содержащейся в тарифе по запросу из View
+    class func outputTariff(inService name: String, dateString: String) -> [Properties : String] {
+        var result = [Properties : String]()
+        guard let tariffArray = CoreDataHandler.fetchTariffsForThisDate(dateString, inService: name) else {
+            return [Properties.errorComlete : Notices.errorCoreData.rawValue]
+        }
+        guard !tariffArray.isEmpty else {return [Properties.errorComlete : Notices.noTariffs.rawValue]}
+        let tariffObject = tariffArray.first!
+        result = parsedTariff(tariffObject)
         return result
     }
     
@@ -84,8 +113,8 @@ class TariffHandler: NSObject {
             guard  parToTariffTupl.result != nil else {
                 return (false, parToTariffTupl.notice, nil)
             }
-            parameterToTariff = parToTariffTupl.result
             isAllotman = true
+            parameterToTariff = parToTariffTupl.result
         }
         // поиск тарифа для обновления (такой должен быть точно, поскольку входящая дата и имя сервиса происходят из вью от сохранения тарифа )
         guard let fetchTariffArray = CoreDataHandler.fetchTariffsForThisDate(date, inService: name) else {
@@ -115,6 +144,13 @@ class TariffHandler: NSObject {
         return  (true, nil, tariffObjectNew)
     }
     
+    
+    
+    // MARK: - удаление тарифа
+    
+    
+    
+    
     // MARK: -
     // MARK: - PRIVATE
     
@@ -122,41 +158,81 @@ class TariffHandler: NSObject {
     /* функция, которая определяет подпадают уже сформированные блоки под введенный тариф или нет
      добавляет эти блоки в BlockInTariff
      обновляет стоимости в этих блоках*/
-    private class func whereNewTariff(_ tariffObject: Tariffs) -> Notices? {
+    private class func addingBlocksInNewTariff(_ tariffObject: Tariffs) -> (Tariffs?, Notices?) {
+       let context = tariffObject.managedObjectContext!
+        // получение всех блоков по определенному сервису
         let name = tariffObject.nameService
         guard let dictionaryDateBlock = BlockHandler.getDictionaryDateBlock(inService: name!) else {
-            return Notices.noBlocks
+            return (nil, Notices.noBlocks)
         }
+        // получение DateInterval для входящего тарифа
         guard let tariffsDI = getTariffsDI(inService: name!) else {
-            return Notices.noBlocks
+            return (nil, Notices.noBlocks)
         }
         let dateInterval = tariffsDI[tariffObject]!
-        var setBlocks = Set<Block>()
+        // формирование сета блоков подпадающих под действие входящего тарифа
+        //var setBlocks = Set<Block>()
         for i in dictionaryDateBlock {
-            if dateInterval.contains(i.key) {
-                setBlocks.insert(i.value)
+            if dateInterval.contains(i.key) &&  (i.value).tariffInBlock != tariffObject {
+                //setBlocks.insert(i.value) // включение в сет блоков при условии, что они "подпадают" в дату и в них нет этого включенного тарифа
+                i.value.tariffInBlock = tariffObject
             }
         }
         // прямое сохранение. множество блоков добавляется в тариф
-        let context = tariffObject.managedObjectContext!
-        tariffObject.addToBlockInTariff(setBlocks as NSSet)
+        //let context = tariffObject.managedObjectContext!
+        //tariffObject.addToBlockInTariff(setBlocks as NSSet)
         do {
             try context.save()
-            let additingSaetBlocks = tariffObject.blockInTariff as! Set<Block>
-            // использоване специальной функции для обновления блоков
-            guard updateValsWhereNewTariff(inBlock: additingSaetBlocks) else {
-                return Notices.noUpdateBlocksWhereNewTariff
-            }
-            return nil
+            return (tariffObject, nil)
         } catch {
-            return Notices.errorCoreData
+            return (nil, Notices.errorCoreData)
         }
+    }
+    
+    
+    // MARK: - обновление прикрепленных блоков
+    // обновление стоимостей в блоках, когда !!!прикрепленные тарифы обновились
+    private class func updateValsWhereNewTariff(inBlock block: Set<Block>) -> Bool {
+        guard let blockFirst = block.first else {
+            return false
+        }
+        guard let tariffObject = blockFirst.tariffInBlock else {
+            return false
+        }
+        if tariffObject.isAllotment {
+            for i in block {
+                guard let getAllotmentVal = BlockHandler.getAllotmentVal(amount: i.amount, tariff: i.tariffInBlock!) else {
+                    return false
+                }
+                let allVal = getAllotmentVal.allVal
+                let valDifference = i.val - allVal // разница в стоимости отрицательная или положительная
+                let isPayNew = valDifference < 0 ? false : i.isPay // маркер об оплате в зависимости от разницы в стоимости
+                let tariffAmountVals = getAllotmentVal.tariffAmountVals
+                guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil,  newOneTariff: nil, newVal: allVal, isPay: isPayNew, newTariffAmountVal: tariffAmountVals, newValDifference: valDifference, newTariffInBlock: nil) else {
+                    return false
+                }
+            }
+        } else {
+            for i in block {
+                let tariff = i.tariffInBlock?.tariffService
+                let amount = i.amount
+                let val = tariff! * amount
+                var tariffAmountVal = (i.tariffAmountVal as? [Double : [Double]])
+                if tariffAmountVal != nil && !((tariffAmountVal?.isEmpty)!) {
+                    tariffAmountVal?.removeAll()
+                }
+                guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: tariff, newVal: val, isPay: nil, newTariffAmountVal: tariffAmountVal, newValDifference: nil, newTariffInBlock: nil) else {
+                    return false
+                }
+            }
+        }
+        return true
     }
     
     
     
     // MARK: - получение словаря тарифов с DateInterval
-    private class func getTariffsDI(inService name: String) -> [Tariffs : DateInterval]? {
+    class func getTariffsDI(inService name: String) -> [Tariffs : DateInterval]? {
         //проверка на предмет возможности получения тарифов и их наличия
         guard let tariffsArray = CoreDataHandler.fetchAllTariffs(inService: name) else {
             return nil
@@ -179,40 +255,15 @@ class TariffHandler: NSObject {
         var result = [Tariffs : DateInterval]()
         for _ in 0..<arrayDateTariffs.count {
             let start = arrayDateTariffs.keys.min()
+            let tariffObject = arrayDateTariffs[start!]
             arrayDateTariffs.removeValue(forKey: start!)
             let end = arrayDateTariffs.isEmpty ? Date().addingTimeInterval(315360000) : (arrayDateTariffs.keys.min())?.addingTimeInterval(-86400) // конечная дата - минус 1 сутки
             let dateInterval = DateInterval(start: start!, end: end!)
-            let tariffObject = arrayDateTariffs[start!]
             result[tariffObject!] = dateInterval
         }
         return result
     }
     
-    
-    
-    // MARK: - обновление прикрепленных блоков
-    // обновление стоимостей в блоках, когда !!!прикрепленные тарифы обновились
-    private class func updateValsWhereNewTariff(inBlock block: Set<Block>) -> Bool {
-        guard let blockFirst = block.first else {
-            return false
-        }
-        guard let tariffObject = blockFirst.tariffInBlock else {
-            return false
-        }
-        for i in block {
-            guard let getAllotmentVal = BlockHandler.getAllotmentVal(amount: i.amount, tariff: tariffObject) else {
-                return false
-            }
-            let allVal = getAllotmentVal.allVal
-            let valDifference = i.val - allVal // разница в стоимости отрицательная или положительная
-            let isPayNew = valDifference < 0 ? false : i.isPay // маркер об оплате в зависимости от разницы в стоимости
-            let tariffAmountVals = getAllotmentVal.tariffAmountVals
-            guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil,  newOneTariff: nil, newVal: allVal, isPay: isPayNew, newTariffAmountVal: tariffAmountVals, newValDifference: valDifference, newTariffInBlock: nil) else {
-                return false
-            }
-        }
-        return true
-    }
     
     
     // MARK: - объект тарифа в строки
@@ -232,7 +283,7 @@ class TariffHandler: NSObject {
     
     
     // MARK: - перевод словаря диференциальных тарифов в строку
-    private class func doubleTariffDictionaryToString(_ dictDouble: [Double : Double]) -> String {
+     class func doubleTariffDictionaryToString(_ dictDouble: [Double : Double]) -> String {
         var result = ""
         for i in dictDouble {
             let nextParameter = "За объём свыше - \(i.key.description)\n"

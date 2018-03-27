@@ -35,7 +35,7 @@ extension Date {
     }
 }
 
-
+// создание даты, предыдущей (на один месяц) от той, когда вводятся данные (дата выводится как месяц и год)
 extension Date {
     static func makePreviousPeriod() -> String {
         let calendar = Calendar.current
