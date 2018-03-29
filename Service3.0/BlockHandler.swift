@@ -13,37 +13,37 @@ class BlockHandler: NSObject {
     
     // MARK: Public
     // резервация блока без значений. происходит первого числа каждого месяца
-    class func reservationBlock(inService name: String) -> (result: Bool, notice: String?) {
+    class func reservationBlock(inService name: String) -> (result: Bool, notice: Notices?) {
         let date = Date.makePreviousPeriod() // предыдущий месяц от даты резервации
         guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(date, inService: name) else {
-            return (false, Notices.errorCoreData.rawValue)
+            return (false, Notices.errorCoreData)
         }
         guard fetchBlock.isEmpty else {
-            return (false, Notices.blockAlreadyExist.rawValue)
+            return (false, Notices.blockAlreadyExist)
         }
         // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
         guard CoreDataHandler.saveBlock(nameService: name, dateString: date) else {
-            return (false, Notices.errorCoreData.rawValue)
+            return (false, Notices.errorCoreData)
         }
         return (true, nil)
     }
     
     
-    
-    class func newReservationBlock(inService name: String, dateString: String) -> (result: Bool, notice: String?) {
-        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
-            return (false, Notices.errorCoreData.rawValue)
-        }
-        guard fetchBlock.isEmpty else {
-            return (false, Notices.blockAlreadyExist.rawValue)
-        }
-        // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
-        guard CoreDataHandler.saveBlock(nameService: name, dateString: dateString) else {
-            return (false, Notices.errorCoreData.rawValue)
-        }
-        return (true, nil)
-    }
-    
+// ВРЕМЕННО ДЛЯ ТЕСТИРОВАНИЯ
+//    class func newReservationBlock(inService name: String, dateString: String) -> (result: Bool, notice: String?) {
+//        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
+//            return (false, Notices.errorCoreData.rawValue)
+//        }
+//        guard fetchBlock.isEmpty else {
+//            return (false, Notices.blockAlreadyExist.rawValue)
+//        }
+//        // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
+//        guard CoreDataHandler.saveBlock(nameService: name, dateString: dateString) else {
+//            return (false, Notices.errorCoreData.rawValue)
+//        }
+//        return (true, nil)
+//    }
+//    
     
     
     //основная функция по вводу показателя и расчета всех остальных параметров
@@ -91,7 +91,7 @@ class BlockHandler: NSObject {
         }
         // вычисление стоимости
         let val: Double
-        guard !tariffs.isAllotment else {
+        guard tariffs.parameterToTariff == nil else {
             // первый вариант: если тариф диеренциальный, то задействуется функция, которая высчитывает этот тариф
             guard let tuplTariffAndVals = getAllotmentVal(amount: amount, tariff: tariffs) else {
                 guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
@@ -104,6 +104,11 @@ class BlockHandler: NSObject {
             guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: val, isPay: nil, newTariffAmountVal: tariffAmountVals, newValDifference: nil, newTariffInBlock: nil) else {
                 return (false, Notices.errorCoreData, nil)
             }
+            // обновление данных общих неоплаченных сумм (при первом варианте)
+            let tuplUpdateSum = ServiceHandler.updateSumInService(name)
+            guard tuplUpdateSum.result else {
+                return(true, tuplUpdateSum.notice, block)
+            }
             return (true, nil, block)
         }
         // второй вариант: если тириф обычный, просто высчитывается стоимость
@@ -111,6 +116,11 @@ class BlockHandler: NSObject {
         val = amount * oneTariff
         guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: oneTariff, newVal: val, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
             return (false, Notices.errorCoreData, nil)
+        }
+        // обновление данных общих неоплаченных сумм (при втором варианте)
+        let tuplUpdateSum = ServiceHandler.updateSumInService(name)
+        guard tuplUpdateSum.result else {
+            return(true, tuplUpdateSum.notice, block)
         }
         return (true, nil, block)
     }
@@ -141,9 +151,30 @@ class BlockHandler: NSObject {
         guard let blockArray = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
             return [Properties.errorComlete : Notices.errorCoreData.rawValue]
         }
-        guard !blockArray.isEmpty else { return [Properties.errorComlete : Notices.noBlockforThisPeriod.rawValue]}
+        guard !blockArray.isEmpty else {
+            return [Properties.errorComlete : Notices.noBlockforThisPeriod.rawValue]
+        }
         let block = blockArray.first!
         result = parsedBlock(block)
+        return result
+    }
+    
+    
+    
+    // вывод всех блоков для View
+    class func outputAllBlocks(forService name: String) -> [[Properties : String]] {
+        var result = [[Properties : String]]()
+        guard let allBlocksArray = CoreDataHandler.fetchAllBlocks(inService: name) else {
+           return [[Properties.errorComlete : Notices.errorCoreData.rawValue]]
+        }
+        guard !allBlocksArray.isEmpty else {
+            return [[Properties.errorComlete : Notices.noBlocks.rawValue]]
+        }
+        var parsetedOneBlock = [Properties : String]()
+        for i in allBlocksArray {
+            parsetedOneBlock = parsedBlock(i)
+            result.append(parsetedOneBlock)
+        }
         return result
     }
     
@@ -167,6 +198,40 @@ class BlockHandler: NSObject {
     
     
     
+    // определение стоимости с диференциальным тарифом
+    class func getAllotmentVal(amount: Double, tariff: Tariffs) -> (tariffAmountVals: [Double : [Double]], allVal: Double)?  {
+        let parameterToTariff = (tariff.parameterToTariff as? [Double : Double])!
+        var arrayParameters = parameterToTariff.keys.filter({$0 < amount})
+        guard let maxArrayParameter = arrayParameters.max() else {
+            return nil
+        }
+        let lastAmount = amount - arrayParameters.max()!
+        let lastVall = lastAmount * parameterToTariff[maxArrayParameter]!
+        var tariffAndVals = [parameterToTariff[maxArrayParameter]! : [lastAmount, lastVall]]
+        for _ in 0..<arrayParameters.count {
+            let max = arrayParameters.max()!
+            let indexMax = arrayParameters.index(of: max)
+            arrayParameters.remove(at: indexMax!)
+            guard !arrayParameters.isEmpty else {
+                let val = max * tariff.tariffService
+                tariffAndVals[tariff.tariffService] = [max, val]
+                break }
+            let nextMax = arrayParameters.max()!
+            let mediumAmount = max - nextMax
+            let mediumTariff = parameterToTariff[nextMax]!
+            let mediumVal = mediumAmount * mediumTariff
+            tariffAndVals[mediumTariff] = [mediumAmount, mediumVal]
+        }
+        var allVal = Double()
+        for i in tariffAndVals {
+            allVal += i.value[1]
+        }
+        return (tariffAndVals, allVal)
+    }
+    
+    
+    
+    
     // MARK: - Private
     // непосредственно вывод показателей из блока в формате строки
     private class func parsedBlock(_ block: Block) -> [Properties : String] {
@@ -179,7 +244,7 @@ class BlockHandler: NSObject {
             if block.oneTariff != 0 {
                 result[.oneTariff] = block.oneTariff.roundedToTwoNumbers().description
             }
-            if block.tariffInBlock!.isAllotment {
+            if block.tariffInBlock!.parameterToTariff != nil {
                 if block.tariffAmountVal != nil {
                     let tav = block.tariffAmountVal as! [Double: [Double]]
                     result[.tariffAmountVal] = stringFromDictionary(tav)
@@ -214,39 +279,6 @@ class BlockHandler: NSObject {
         guard dateAndBlocks.count >= 1 else {return ([], Notices.thisFirstMark)}
         let lastBlock = dateAndBlocks[dateAndBlocks.keys.max()!]!
         return ([lastBlock], nil)
-    }
-    
-    
-    
-    // определение стоимости с диференциальным тарифом
-    class func getAllotmentVal(amount: Double, tariff: Tariffs) -> (tariffAmountVals: [Double : [Double]], allVal: Double)?  {
-        let parameterToTariff = (tariff.parameterToTariff as? [Double : Double])!
-        var arrayParameters = parameterToTariff.keys.filter({$0 < amount})
-        guard let maxArrayParameter = arrayParameters.max() else {
-            return nil
-        }
-        let lastAmount = amount - arrayParameters.max()!
-        let lastVall = lastAmount * parameterToTariff[maxArrayParameter]!
-        var tariffAndVals = [parameterToTariff[maxArrayParameter]! : [lastAmount, lastVall]]
-        for _ in 0..<arrayParameters.count {
-            let max = arrayParameters.max()!
-            let indexMax = arrayParameters.index(of: max)
-            arrayParameters.remove(at: indexMax!)
-            guard !arrayParameters.isEmpty else {
-                let val = max * tariff.tariffService
-                tariffAndVals[tariff.tariffService] = [max, val]
-                break }
-            let nextMax = arrayParameters.max()!
-            let mediumAmount = max - nextMax
-            let mediumTariff = parameterToTariff[nextMax]!
-            let mediumVal = mediumAmount * mediumTariff
-            tariffAndVals[mediumTariff] = [mediumAmount, mediumVal]
-        }
-        var allVal = Double()
-        for i in tariffAndVals {
-            allVal += i.value[1]
-        }
-        return (tariffAndVals, allVal)
     }
     
     

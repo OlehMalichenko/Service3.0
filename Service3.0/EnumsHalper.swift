@@ -33,6 +33,10 @@ enum Notices: String
     "Ошибка базы данных"
     case blockAlreadyExist =
     "Блок уже существует"
+    case serviceAlreadyExist =
+    "Такой сервис уже существует"
+    case noService =
+    "Такого сервиса не существует"
     case thisFirstMark =
     "Это первый показатель, поэтому определить стоимость услуг невозможно"
     case impossiblyReadDateFromCD =
@@ -51,6 +55,8 @@ enum Notices: String
     "На указанную дату тариф не установлены"
     case noBlocksInTariff =
     "К тарифу не подкреплен ни один показатель"
+    case noTariffsInBlock =
+    "Период пользования услугой не подпадает под действие ниодного тарифа"
     case noUpdateBlocksWhereNewTariff =
     "При смене тарифа данные предыдущих показателей не обновились"
     case needParametersForTariff =
@@ -63,4 +69,6 @@ enum Notices: String
     "Оплачено"
     case isNotPay =
     "Не оплачено"
+    case serviceSumIsNotUpdate =
+    "Неоплаченные суммы сервиса не обновились"
 }

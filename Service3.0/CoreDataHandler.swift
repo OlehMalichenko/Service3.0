@@ -18,6 +18,7 @@ class CoreDataHandler: NSObject {
     }
     
     
+    
     // MARK: - Save
     // сохранения Service
     class func saveService(byName name: String, sumVal: Double?) -> Bool {
@@ -27,13 +28,15 @@ class CoreDataHandler: NSObject {
         service.sumVal = sumVal ?? service.sumVal
         do {
             try context.save()
-            print("сохранение удалось")
+            print("сохранение сервиса удалось")
             return true
         } catch {
-            print("сохранение НЕ удалось")
+            print("сохранение сервиса НЕ удалось")
             return false
         }
     }
+    
+    
     
     // сохранение Block
     class func saveBlock(nameService: String, dateString: String) -> Bool {
@@ -64,11 +67,12 @@ class CoreDataHandler: NSObject {
         }
     }
     
+    
+    
     // сохранение Tariff
     class func saveTariff(nameService: String,
                           date: String,
                           tariffService: Double,
-                          isAllotment: Bool?,
                           parameterToTariff: [Double : Double]?) -> Bool
     {
         let context = getContext()
@@ -76,8 +80,7 @@ class CoreDataHandler: NSObject {
         tariffObject.nameService = nameService
         tariffObject.dateTariff = date
         tariffObject.tariffService = tariffService
-        tariffObject.isAllotment = isAllotment ?? tariffObject.isAllotment
-        tariffObject.parameterToTariff = parameterToTariff as NSObject? ?? tariffObject.parameterToTariff
+        tariffObject.parameterToTariff = parameterToTariff as NSObject?
         do {
             try context.save()
             print("сохранение тарифа удалось")
@@ -87,6 +90,7 @@ class CoreDataHandler: NSObject {
             return false
         }
     }
+    
     
     
     // MARK: - Fetch
@@ -105,6 +109,9 @@ class CoreDataHandler: NSObject {
         }
     }
     
+    
+    
+    // найти определенный сервис по имени
     class func fetchServiceForName(_ name: String) -> [Services]? {
         let context = getContext()
         var result: [Services]
@@ -120,6 +127,8 @@ class CoreDataHandler: NSObject {
             return nil
         }
     }
+    
+    
     
     // найти все Blocks по имени Service
     class func fetchAllBlocks(inService name: String) -> [Block]? {
@@ -137,8 +146,10 @@ class CoreDataHandler: NSObject {
             return nil
         }
     }
+  
     
     
+    // найти блок за определенную дату
     class func fetchBlockForThisDate(_ date: String, inService name: String) -> [Block]? {
         let context = getContext()
         var result: [Block]
@@ -156,6 +167,46 @@ class CoreDataHandler: NSObject {
     }
     
     
+    
+    // найти блоки которые стоимость по которым указана как неоплаченная
+    class func fetchBlocksThatIsNotPay(inService name: String) -> [Block]? {
+        let context = getContext()
+        let result: [Block]
+        let request: NSFetchRequest<Block> = Block.fetchRequest()
+        let predicate = NSPredicate(format: "nameService == %@ && isPay == %@", argumentArray: [name, false])
+        request.predicate = predicate
+        do {
+            result = try context.fetch(request)
+            print("Неоплаченныe блоки найдены")
+            return result
+        } catch {
+            print("Ошибка базы данных")
+            return nil
+        }
+    }
+    
+    
+    
+    // найти оплаченные блоки но с имеющейся дифференциальной стоимостью
+    class func fetchBlocksWithValDifference(inService name: String) -> [Block]? {
+        let context = getContext()
+        let request: NSFetchRequest<Block> = Block.fetchRequest()
+        let predicate = NSPredicate(format: "nameService == %@ && isPay == %@ && valDifference > %@", argumentArray: [name, true, 0.0])
+        request.predicate = predicate
+        var result: [Block]
+        do {
+            result = try context.fetch(request)
+            print("Блоки с дифференциальной стоимостью найдены")
+            return result
+        } catch {
+            print("Блоки с дифференциальной стоимостью HE найдены")
+            return nil
+        }
+    }
+    
+    
+    
+    // найти все тарифы
     class func fetchAllTariffs(inService name: String) -> [Tariffs]? {
         let context = getContext()
         var result: [Tariffs]
@@ -173,6 +224,8 @@ class CoreDataHandler: NSObject {
     }
     
     
+    
+    // найти тариф за определенную дату
     class func fetchTariffsForThisDate(_ date: String, inService name: String) -> [Tariffs]? {
         let context = getContext()
         var result: [Tariffs]
@@ -189,6 +242,9 @@ class CoreDataHandler: NSObject {
         }
     }
     
+    
+    
+    // найти последний тариф
     class func fetchLastTariff(inService name: String, forDateBlock dateBlockString: String) -> [Tariffs]? {
         guard let dateBlock = dateBlockString.getDate() else {return nil}
         let context = getContext()
@@ -213,6 +269,7 @@ class CoreDataHandler: NSObject {
         let maxDate = dictTariff.keys.max()!
         return [dictTariff[maxDate]!]
     }
+    
     
     
     // MARK: - Update
@@ -247,14 +304,12 @@ class CoreDataHandler: NSObject {
     
     class func updateTariff(_ tariffObject: Tariffs,
                             tariff: Double?,
-                            isAllotment: Bool?,
                             parameterToTariff: [Double : Double]?,
                             newBlockInTariff: Block?) -> Bool
     {
         let context = tariffObject.managedObjectContext!
         tariffObject.tariffService = tariff ?? tariffObject.tariffService
-        tariffObject.isAllotment = isAllotment ?? tariffObject.isAllotment
-        tariffObject.parameterToTariff = parameterToTariff as NSObject? ?? tariffObject.parameterToTariff
+        tariffObject.parameterToTariff = parameterToTariff as NSObject? 
         if newBlockInTariff != nil {tariffObject.addToBlockInTariff(newBlockInTariff!)}
         do {
             try context.save()
