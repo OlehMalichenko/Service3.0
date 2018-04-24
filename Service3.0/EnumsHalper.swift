@@ -16,6 +16,7 @@ enum Properties
     case date
     case amount
     case val
+    case forPay
     case oneTariff
     case tariffAmountVal
     case isPay
@@ -45,6 +46,8 @@ enum Notices: String
     "Невозможно определить значение параметра"
     case impossiblyStringToDate =
     "Невозможно определить значение параметра даты"
+    case impossiblyCalculateAmountVal =
+    "Невозможно расчитать стоимость по диференциальному тарифу"
     case inputMarkPreviousPeriod =
     "Введите показания предыдущих периодов"
     case incorrectMark =

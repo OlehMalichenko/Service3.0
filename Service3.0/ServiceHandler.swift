@@ -57,17 +57,17 @@ class ServiceHandler: NSObject {
         guard let blocksIsNotPay = CoreDataHandler.fetchBlocksThatIsNotPay(inService: name) else {
             return (false, Notices.errorCoreData)
         }
-        // вывод блоков которые оплачены, но с дифференциальной стоимостью
-        guard let blocksWithValDifference = CoreDataHandler.fetchBlocksWithValDifference(inService: name) else {
+        // вывод оплаченных блоков, но с отрицательной стоимостью
+        guard let blocksIsPayAndNegativeForPay = CoreDataHandler.fetchIsPayBlocksWithNegativeForPay(inService: name) else {
             return (false, Notices.errorCoreData)
         }
         // циклы по выведенным блокам
         var newSum = Double()
         for i in blocksIsNotPay {
-            newSum += i.val
+            newSum += i.forPay
         }
-        for i in blocksWithValDifference {
-            newSum += i.valDifference
+        for i in blocksIsPayAndNegativeForPay {
+            newSum += i.forPay
         }
         guard CoreDataHandler.updateService(serviceObject, newSum: newSum) else {
             return (false, Notices.errorCoreData)
@@ -79,6 +79,7 @@ class ServiceHandler: NSObject {
     
     // оплата блока
     class func isPayBlock(inService name: String, date: String) -> (result: Bool, notice: Notices?) {
+        // вывод необходимого блока
         guard let blockArray = CoreDataHandler.fetchBlockForThisDate(date, inService: name) else {
             return (false, Notices.errorCoreData)
         }
@@ -86,9 +87,13 @@ class ServiceHandler: NSObject {
             return (false, Notices.noBlocks)
         }
         let block = blockArray.first!
-        guard CoreDataHandler.updateBlock(block, newMark: nil, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: true /*меняется только "оплачено" */, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
+        // обновление блока
+        let valDifference = block.valDifference + block.forPay // прибавление оплаченной части к имеющемуся буферу
+        let forPay: Double? = block.forPay > 0 ? 0 : nil // обнуление суммы к оплате, если она положительная
+        guard CoreDataHandler.updateBlock(block, newMark: nil, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: true /*меняется "оплачено" */, newTariffAmountVal: nil, newValDifference: valDifference, newForPay: forPay, newTariffInBlock: nil) else {
             return (false, Notices.errorCoreData)
         }
+        // обновление общих сумм
         guard updateSumInService(name).result else {
             return (false, Notices.serviceSumIsNotUpdate)
         }
@@ -97,22 +102,22 @@ class ServiceHandler: NSObject {
     
     
     
-    // оплата диференциального тарифа
-    class func isPayValDifference(inService name: String, date: String) -> (result: Bool, notice: Notices?) {
-        guard let blockArray = CoreDataHandler.fetchBlockForThisDate(date, inService: name) else {
-            return (false, Notices.errorCoreData)
-        }
-        guard blockArray.count == 1 else {
-            return (false, Notices.noBlocks)
-        }
-        let block = blockArray.first!
-        guard CoreDataHandler.updateBlock(block, newMark: nil, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: 0 /* обнуляется только дифференциальная стоимость */, newTariffInBlock: nil) else {
-            return (false, Notices.errorCoreData)
-        }
-        guard updateSumInService(name).result else {
-            return (false, Notices.serviceSumIsNotUpdate)
-        }
-        return (true, nil)
-    }
+//    // оплата диференциального тарифа
+//   class func isPayValDifference(inService name: String, date: String) -> (result: Bool, notice: Notices?) {
+//        guard let blockArray = CoreDataHandler.fetchBlockForThisDate(date, inService: name) else {
+//            return (false, Notices.errorCoreData)
+//        }
+//        guard blockArray.count == 1 else {
+//            return (false, Notices.noBlocks)
+//        }
+//        let block = blockArray.first!
+//        guard CoreDataHandler.updateBlock(block, newMark: nil, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: 0 /* обнуляется только дифференциальная стоимость */, newTariffInBlock: nil) else {
+//            return (false, Notices.errorCoreData)
+//        }
+//        guard updateSumInService(name).result else {
+//            return (false, Notices.serviceSumIsNotUpdate)
+//        }
+//        return (true, nil)
+//    }
     
 }

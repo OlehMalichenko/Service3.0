@@ -30,20 +30,20 @@ class BlockHandler: NSObject {
     
     
 // ВРЕМЕННО ДЛЯ ТЕСТИРОВАНИЯ
-//    class func newReservationBlock(inService name: String, dateString: String) -> (result: Bool, notice: String?) {
-//        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
-//            return (false, Notices.errorCoreData.rawValue)
-//        }
-//        guard fetchBlock.isEmpty else {
-//            return (false, Notices.blockAlreadyExist.rawValue)
-//        }
-//        // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
-//        guard CoreDataHandler.saveBlock(nameService: name, dateString: dateString) else {
-//            return (false, Notices.errorCoreData.rawValue)
-//        }
-//        return (true, nil)
-//    }
-//    
+    class func newReservationBlock(inService name: String, dateString: String) -> (result: Bool, notice: String?) {
+        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
+            return (false, Notices.errorCoreData.rawValue)
+        }
+        guard fetchBlock.isEmpty else {
+            return (false, Notices.blockAlreadyExist.rawValue)
+        }
+        // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
+        guard CoreDataHandler.saveBlock(nameService: name, dateString: dateString) else {
+            return (false, Notices.errorCoreData.rawValue)
+        }
+        return (true, nil)
+    }
+    
     
     
     //основная функция по вводу показателя и расчета всех остальных параметров
@@ -69,7 +69,7 @@ class BlockHandler: NSObject {
         // проверка наличия в полученом результате блока
         // если предпоследнего нет, то выход из функции с сохранением введенного показателя и сообщением о том, что это первый показатель
         guard !arrayLastBlock.isEmpty else {
-            guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
+            guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newForPay: nil, newTariffInBlock: nil) else {
                 return (false, Notices.errorCoreData, nil)
             }
             return (true, Notices.thisFirstMark, block)
@@ -84,24 +84,34 @@ class BlockHandler: NSObject {
         guard amount >= 0 else {return (false, Notices.incorrectMark, nil)}
         // проверка на наличие тарифов. Если тарифов нет - выход и сохранение имеющихся данных
         guard let tariffs = block.tariffInBlock else {
-            guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
+            guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newForPay: nil, newTariffInBlock: nil) else {
                 return (false, Notices.errorCoreData, nil)
             }
             return (true, Notices.noTariffs, block)
         }
         // вычисление стоимости
         let val: Double
+        let forPay: Double
+        let valDifference: Double
+        let isPay: Bool
         guard tariffs.parameterToTariff == nil else {
-            // первый вариант: если тариф диеренциальный, то задействуется функция, которая высчитывает этот тариф
+            // 1. первый вариант: если тариф диеренциальный, то задействуется функция, которая высчитывает этот тариф
             guard let tuplTariffAndVals = getAllotmentVal(amount: amount, tariff: tariffs) else {
-                guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
+                guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newForPay: nil, newTariffInBlock: nil) else {
                     return (false, Notices.errorCoreData, nil)
                 }
                 return (false, Notices.needParametersForTariff, block) // если параметры дифТарифа не установлены - сохранение имеющихся данных
             }
             let tariffAmountVals = tuplTariffAndVals.tariffAmountVals
             val = tuplTariffAndVals.allVal
-            guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: nil, newVal: val, isPay: nil, newTariffAmountVal: tariffAmountVals, newValDifference: nil, newTariffInBlock: nil) else {
+            // сбор данных о переплатах (минусовой forPay)
+            guard let negativePayInLastPeriods = checkBlocksWithNegativeForPay(inService: name) else {
+                return (false, Notices.errorCoreData, nil)
+            }
+            forPay = val + negativePayInLastPeriods // добавление (минусование от стоимости)
+            valDifference = negativePayInLastPeriods != 0 ? -(negativePayInLastPeriods) : 0 // буфер оплаченной части
+            isPay = forPay > 0 ? false : true
+            guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: tariffs.tariffService, newVal: val, isPay: isPay, newTariffAmountVal: tariffAmountVals, newValDifference: valDifference, newForPay: forPay, newTariffInBlock: nil) else {
                 return (false, Notices.errorCoreData, nil)
             }
             // обновление данных общих неоплаченных сумм (при первом варианте)
@@ -111,10 +121,18 @@ class BlockHandler: NSObject {
             }
             return (true, nil, block)
         }
-        // второй вариант: если тириф обычный, просто высчитывается стоимость
+        // 2. второй вариант: если тириф обычный, просто высчитывается стоимость
         let oneTariff = tariffs.tariffService
         val = amount * oneTariff
-        guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: oneTariff, newVal: val, isPay: nil, newTariffAmountVal: nil, newValDifference: nil, newTariffInBlock: nil) else {
+        // если оплата предыдущего блока была минусовой - оплата настоящего блока минусуется
+        // сбор данных о переплатах (минусовой forPay)
+        guard let negativePayInLastPeriods = checkBlocksWithNegativeForPay(inService: name) else {
+            return (false, Notices.errorCoreData, nil)
+        }
+        forPay = val + negativePayInLastPeriods // добавление (минусование от стоимости)
+        valDifference = negativePayInLastPeriods != 0 ? -(negativePayInLastPeriods) : 0 // буфер оплаченной части
+        isPay = forPay > 0 ? false : true // состояние оплаты в зависимости от положительного или отрицательного числа
+        guard CoreDataHandler.updateBlock(block, newMark: mark, newAmount: amount, newOneTariff: oneTariff, newVal: val, isPay: isPay, newTariffAmountVal: nil, newValDifference: valDifference, newForPay: forPay, newTariffInBlock: nil) else {
             return (false, Notices.errorCoreData, nil)
         }
         // обновление данных общих неоплаченных сумм (при втором варианте)
@@ -123,6 +141,23 @@ class BlockHandler: NSObject {
             return(true, tuplUpdateSum.notice, block)
         }
         return (true, nil, block)
+    }
+    
+    
+    
+    // проверка блоков, которые переплачены (то есть минусовое значение к оплате) и вывод всех минусовых оплат "на возврат"
+    // параллельно - обнуление значений к оплате и отъём разницы в буфере + сохранение измененного блока
+    class func checkBlocksWithNegativeForPay(inService name: String) -> Double? {
+        guard let blocksArray = CoreDataHandler.fetchIsPayBlocksWithNegativeForPay(inService: name) else {
+            return nil
+        }
+        var result: Double = 0
+        for i in blocksArray {
+            result += i.forPay
+            let valDifference = i.valDifference + i.forPay
+            guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: nil, newVal: nil, isPay: nil, newTariffAmountVal: nil, newValDifference: valDifference, newForPay: 0, newTariffInBlock: nil) else { return nil }
+        }
+        return result
     }
     
     
@@ -254,6 +289,7 @@ class BlockHandler: NSObject {
               if block.val != 0 { result[.val] = block.val.roundedToTwoNumbers().description }
             }
         }
+    if block.forPay != 0 { result[.forPay] = block.forPay.roundedToTwoNumbers().description }
         if block.isPay {
             result[.isPay] = Notices.isPay.rawValue
         } else {

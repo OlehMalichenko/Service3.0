@@ -207,49 +207,44 @@ class TariffHandler: NSObject {
     // обновление стоимостей в блоках, когда !!!прикрепленные тарифы обновились
     // так же тут работае функция по подсчету всех неоплаченных сумм updateSumInService
     private class func updateValsInSetBlocks(inBlock block: Set<Block>) -> (result: Bool, notice: Notices?) {
-        guard let blockFirst = block.first else {
+        // вывод тарифа, из которого выведен входящий сет блоков
+        guard !block.isEmpty else {
             return (false, Notices.noBlocks)
         }
-        guard let tariffObject = blockFirst.tariffInBlock else {
-            return (false, Notices.noTariffsInBlock)
-        }
-        if tariffObject.parameterToTariff != nil {
+        let tariffObject = block.first!.tariffInBlock! // тариф должен быть так как сет берется из тарифа
+        // операции внутри блока
+        if tariffObject.parameterToTariff != nil { // если тариф дифференциальный
+            for i in block { // цикл в сете блоков и соотвествующие операции с конкретным блоком
+                if i.amount != 0 { // работа с блоком проводится в том случае если есть объём
+                    guard let tuplAllotmentVal = BlockHandler.getAllotmentVal(amount: i.amount, tariff: tariffObject) else {
+                        return (false, Notices.impossiblyCalculateAmountVal)
+                    }
+                    let tariffAmountVal = tuplAllotmentVal.tariffAmountVals
+                    let allVal = tuplAllotmentVal.allVal
+                    let forPay = i.isPay ? allVal - i.valDifference : allVal
+                    let isPay = forPay > 0 ? false : true
+                    guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: tariffObject.tariffService, newVal: allVal, isPay: isPay, newTariffAmountVal: tariffAmountVal, newValDifference: nil, newForPay: forPay, newTariffInBlock: nil) else { return (false, Notices.errorCoreData) }
+                }
+            }
+        } else { // в случае если тариф не дифференциальный - аналогичная работа с блоком
             for i in block {
                 if i.amount != 0 {
-                    guard let getAllotmentVal = BlockHandler.getAllotmentVal(amount: i.amount, tariff: i.tariffInBlock!) else {
-                        return (false, Notices.errorCoreData)
+                    let tariff = i.tariffInBlock!.tariffService
+                    let amount = i.amount
+                    let allVal = tariff * amount
+                    var tariffAmountVal = (i.tariffAmountVal as? [Double : [Double]]) // если до этого в блоке были диверенциированные параметры
+                    if tariffAmountVal != nil && !((tariffAmountVal?.isEmpty)!) {
+                        tariffAmountVal?.removeAll() // удаление данных о дифференциированных параметрах
                     }
-                    let allVal = getAllotmentVal.allVal
-                    let tariffAmountVals = getAllotmentVal.tariffAmountVals
-                    var valDifference: Double? = nil
-                    if i.isPay { // в случае если блок оплачен вычисляется разница в стоимости
-                        valDifference = allVal - i.val // разница в стоимости может быть отрицательная или положительная
-                    }
-                    guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil,  newOneTariff: nil, newVal: allVal, isPay: nil, newTariffAmountVal: tariffAmountVals, newValDifference: valDifference, newTariffInBlock: nil) else {
-                        return (false, Notices.errorCoreData)
-                    }
-                }
-            }
-        } else {
-            for i in block {
-                let tariff = i.tariffInBlock?.tariffService
-                let amount = i.amount
-                let val = tariff! * amount
-                var valDifference: Double? = nil
-                if i.isPay { // в случае если блок оплачен вычисляется разница в стоимости
-                    valDifference = val - i.val // разница в стоимости может быть отрицательная или положительная
-                }
-                var tariffAmountVal = (i.tariffAmountVal as? [Double : [Double]]) // если до этого в блоке были диверенциированные параметры
-                if tariffAmountVal != nil && !((tariffAmountVal?.isEmpty)!) {
-                    tariffAmountVal?.removeAll() // удаление данных о дифференциированных параметрах
-                }
-                guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: tariff, newVal: val, isPay: nil, newTariffAmountVal: tariffAmountVal, newValDifference: valDifference, newTariffInBlock: nil) else {
-                    return (false, Notices.errorCoreData)
+                    let forPay = i.isPay ? allVal - i.valDifference : allVal
+                    let isPay = forPay > 0 ? false : true
+                    guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: tariff, newVal: allVal, isPay: isPay, newTariffAmountVal: tariffAmountVal, newValDifference: nil, newForPay: forPay, newTariffInBlock: nil) else {
+                        return (false, Notices.errorCoreData) }
                 }
             }
         }
-        // обновление данных сервиса по подсчету общих сумм
-        let tuplUpdateSum = ServiceHandler.updateSumInService(blockFirst.nameService!)
+        //обновление данных сервиса по подсчету общих сумм
+        let tuplUpdateSum = ServiceHandler.updateSumInService(block.first!.nameService!)
         guard tuplUpdateSum.result else {
             return (true, tuplUpdateSum.notice)
         }
@@ -260,35 +255,56 @@ class TariffHandler: NSObject {
     
     // MARK: - обновление всего что есть
     private class func updateAllBlocks(inService name: String) -> (result: Bool, notice: Notices?) {
+        // вывод всех тарифов в данном сервисе
         guard let allTariffsArray = CoreDataHandler.fetchAllTariffs(inService: name) else {
             return (false, Notices.errorCoreData)
         }
+        // два варианта дальнейших действий в зависимости от того остались какие-либо тарифы или нет (в случае их удаления)
         if !allTariffsArray.isEmpty {
-            // если тарифы есть - цикл по тарифам - добавление блоков в тарифы - обновление данных блоков
+        // если тарифы есть - цикл по тарифам - добавление блоков в тарифы - обновление данных блоков
             for i in allTariffsArray {
-                let tuplAddingBlockInTariff = addingBlocksInNewTariff(i)
+                let tuplAddingBlockInTariff = addingBlocksInNewTariff(i) // добавление блока в тариф
                 guard let tariffObject = tuplAddingBlockInTariff.0 else {
                     return (false, tuplAddingBlockInTariff.1)
                 }
+                // вывод сета блоков в тарифе и его обновление функцией updateValsInSetBlocks
                 if let setBlocks = tariffObject.blockInTariff as? Set<Block> {
                     guard updateValsInSetBlocks(inBlock: setBlocks).result else {
                         return (false, Notices.noUpdateBlocksWhereNewTariff)
                     }
                 }
             }
-            return (true, nil)
-        } else {
-            // если тарифов нет вообще - удаление данных о стоимостях и тарифов
+            // обработка варианта если какие-либо блоки не подпадают под действие тарифа
+            guard let blocksWithoutTariff = CoreDataHandler.fetchBlocksWithoutTariff(isService: name) else {
+                return (false, Notices.errorCoreData)
+            } // после выборки блоков, которые не подпадают под какой-либо тариф - цикл по этим блокам
+            for i in blocksWithoutTariff {
+                let newTariffAmountVal = [Double : [Double]]() // создание пустых показателей
+                let newForPay = i.valDifference != 0 ? -(i.valDifference) : 0 // если в буфере есть значение (уже оплачено), то минусовая его часть становиться "для оплаты" для дальнейшего подсчета как переплата
+                let isPay = newForPay > 0 ? false : true
+                guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: 0, newVal: 0, isPay: isPay, newTariffAmountVal: newTariffAmountVal, newValDifference: nil, newForPay: newForPay, newTariffInBlock: nil) else {
+                    return (false, Notices.errorCoreData)
+                }
+            }
+        } else { // если тарифов нет вообще - удаление данных о стоимостях и тарифов
             guard let fetchAllBlocks = CoreDataHandler.fetchAllBlocks(inService: name) else {
                 return (false, Notices.errorCoreData)
             }
             for i in fetchAllBlocks {
-                guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: 0, newVal: 0, isPay: false, newTariffAmountVal: nil, newValDifference: 0, newTariffInBlock: nil) else {
+                let newTariffAmountVal = [Double : [Double]]() // создание пустых показателей
+                let newForPay = i.valDifference != 0 ? -(i.valDifference) : 0
+                let isPay = newForPay > 0 ? false : true
+                guard CoreDataHandler.updateBlock(i, newMark: nil, newAmount: nil, newOneTariff: 0, newVal: 0, isPay: isPay, newTariffAmountVal: newTariffAmountVal, newValDifference: nil, newForPay: newForPay, newTariffInBlock: nil) else {
                     return (false, Notices.errorCoreData)
                 }
             }
-            return (true, nil)
         }
+        // обновление общих сумм в Сервисе
+        let tuplUpdateSum = ServiceHandler.updateSumInService(name)
+        guard tuplUpdateSum.result else {
+            return (true, tuplUpdateSum.notice)
+        }
+        return (true, nil)
     }
     
     

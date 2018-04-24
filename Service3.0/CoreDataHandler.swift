@@ -187,19 +187,39 @@ class CoreDataHandler: NSObject {
     
     
     
-    // найти оплаченные блоки но с имеющейся дифференциальной стоимостью
-    class func fetchBlocksWithValDifference(inService name: String) -> [Block]? {
+    // найти оплаченные блоки но с отрицательной оплатой
+    class func fetchIsPayBlocksWithNegativeForPay(inService name: String) -> [Block]? {
         let context = getContext()
         let request: NSFetchRequest<Block> = Block.fetchRequest()
-        let predicate = NSPredicate(format: "nameService == %@ && isPay == %@ && valDifference > %@", argumentArray: [name, true, 0.0])
+        let predicate = NSPredicate(format: "nameService == %@ && isPay == %@ && forPay < %@", argumentArray: [name, true, 0.0])
         request.predicate = predicate
         var result: [Block]
         do {
             result = try context.fetch(request)
-            print("Блоки с дифференциальной стоимостью найдены")
+            print("Блоки с отрицательной стоимостью найдены")
             return result
         } catch {
-            print("Блоки с дифференциальной стоимостью HE найдены")
+            print("Блоки с отрицательной стоимостью HE найдены")
+            return nil
+        }
+    }
+    
+    
+    
+    // найти блоки не подпадающие под действие тарифа
+    class func fetchBlocksWithoutTariff(isService name: String) -> [Block]? {
+        let context = getContext()
+        let request: NSFetchRequest<Block> = Block.fetchRequest()
+        //let predicate = NSPredicate(format: "nameService == %@ && tariffInBlock == %@", argumentArray: [name, nil])
+        let predicate = NSPredicate(format: "nameService == %@ && tariffInBlock == nil", argumentArray: [name])
+        request.predicate = predicate
+        var result: [Block]
+        do {
+            result = try context.fetch(request)
+            print("Блоки с отрицательной стоимостью найдены")
+            return result
+        } catch {
+            print("Блоки с отрицательной стоимостью HE найдены")
             return nil
         }
     }
@@ -281,6 +301,7 @@ class CoreDataHandler: NSObject {
                            isPay: Bool?,
                            newTariffAmountVal: [Double : [Double]]?,
                            newValDifference: Double?,
+                           newForPay: Double?,
                            newTariffInBlock: Tariffs?) -> Bool
     {
         let context = block.managedObjectContext!
@@ -290,7 +311,8 @@ class CoreDataHandler: NSObject {
         block.val = newVal ?? block.val
         block.isPay = isPay ?? block.isPay
         block.valDifference = newValDifference ?? block.valDifference
-        block.tariffAmountVal = newTariffAmountVal as NSObject? 
+        block.forPay = newForPay ?? block.forPay
+        block.tariffAmountVal = newTariffAmountVal as NSObject? ?? block.tariffAmountVal
         block.tariffInBlock = newTariffInBlock ?? block.tariffInBlock
         do {
             try context.save()
