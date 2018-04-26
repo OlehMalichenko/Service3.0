@@ -75,6 +75,14 @@
 				76CB898120503E46005B76A9 /* LaunchScreen.storyboard */,
 				76CB898420503E46005B76A9 /* Info.plist */,
 				76CB897C20503E46005B76A9 /* Service3_0.xcdatamodeld */,
+				76F92382209204E900277098 /* ModelHandler */,
+			);
+			path = Service3.0;
+			sourceTree = "<group>";
+		};
+		76F92382209204E900277098 /* ModelHandler */ = {
+			isa = PBXGroup;
+			children = (
 				76CB898A205049FF005B76A9 /* CoreDataHandler.swift */,
 				76CB899020514A42005B76A9 /* BlockHandler.swift */,
 				76CB899220514A62005B76A9 /* TariffHandler.swift */,
@@ -82,7 +90,7 @@
 				76CB898E205138D3005B76A9 /* Extentions.swift */,
 				76CB898C20504AA0005B76A9 /* EnumsHalper.swift */,
 			);
-			path = Service3.0;
+			path = ModelHandler;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
