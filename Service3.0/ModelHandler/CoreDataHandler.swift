@@ -367,4 +367,9 @@ class CoreDataHandler: NSObject {
             return false
         }
     }
+    
+    class func undoCD() {
+        let context = getContext()
+        context.undo()
+    }
 }

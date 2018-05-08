@@ -37,11 +37,11 @@ extension Date {
 
 // создание даты, предыдущей (на один месяц) от той, когда вводятся данные (дата выводится как месяц и год)
 extension Date {
-    static func makePreviousPeriod() -> String {
+    static func makePreviousPeriod(forDate date: Date) -> String {
         let calendar = Calendar.current
         let formater = DateFormatter()
         formater.dateFormat = "MMMM, yy"
-        let datePeriod = calendar.date(byAdding: .month, value: -1, to: Date())
+        let datePeriod = calendar.date(byAdding: .month, value: -1, to: date)
         let result = formater.string(from: datePeriod!)
         return result
     }

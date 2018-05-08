@@ -12,34 +12,25 @@ import CoreData
 class BlockHandler: NSObject {
     
     // MARK: Public
-    // резервация блока без значений. происходит первого числа каждого месяца
-    class func reservationBlock(inService name: String) -> (result: Bool, notice: Notices?) {
-        let date = Date.makePreviousPeriod() // предыдущий месяц от даты резервации
-        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(date, inService: name) else {
+    // резервация блока без значений.
+    class func reservationBlock(inService name: String, dateString: String) -> (result: Bool, notice: Notices?) {
+        // получение даты резервации блока
+        guard let date = dateString.getDate() else {return (false, Notices.impossiblyStringToDate)}
+        // получение предыдущего месяца от даты резервации
+        let previousDate = Date.makePreviousPeriod(forDate: date)
+        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(previousDate, inService: name) else {
             return (false, Notices.errorCoreData)
         }
         guard fetchBlock.isEmpty else {
-            return (false, Notices.blockAlreadyExist)
+            return (true, Notices.blockAlreadyExist)
         }
         // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
-        guard CoreDataHandler.saveBlock(nameService: name, dateString: date) else {
+        guard CoreDataHandler.saveBlock(nameService: name, dateString: previousDate) else {
             return (false, Notices.errorCoreData)
         }
-        return (true, nil)
-    }
-    
-    
-// ВРЕМЕННО ДЛЯ ТЕСТИРОВАНИЯ
-    class func newReservationBlock(inService name: String, dateString: String) -> (result: Bool, notice: String?) {
-        guard let fetchBlock = CoreDataHandler.fetchBlockForThisDate(dateString, inService: name) else {
-            return (false, Notices.errorCoreData.rawValue)
-        }
-        guard fetchBlock.isEmpty else {
-            return (false, Notices.blockAlreadyExist.rawValue)
-        }
-        // сохранение блока. Присоединение последнего тарифа происходит на стадии saveBlock
-        guard CoreDataHandler.saveBlock(nameService: name, dateString: dateString) else {
-            return (false, Notices.errorCoreData.rawValue)
+        let recReservation = reservationBlock(inService: name, dateString: previousDate)
+        if !recReservation.result {
+            
         }
         return (true, nil)
     }
